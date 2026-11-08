@@ -1,0 +1,141 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Default deny all access unless explicitly granted
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // Connection test helper
+    match /test/connection {
+      allow get: if isSignedIn();
+    }
+
+    // Validation helper for Quote document
+    function isValidQuote(data) {
+      return data.keys().hasAll([
+        'ownerId',
+        'customerName',
+        'lawnSizeSqFt',
+        'serviceType',
+        'servicePrice',
+        'lineItems',
+        'totalAmount',
+        'status',
+        'createdAt',
+        'updatedAt'
+      ]) &&
+      data.keys().hasOnly([
+        'id',
+        'ownerId',
+        'ownerEmail',
+        'customerName',
+        'lawnSizeSqFt',
+        'serviceType',
+        'servicePrice',
+        'addons',
+        'lineItems',
+        'totalAmount',
+        'status',
+        'clientNotes',
+        'draftMessage',
+        'createdAt',
+        'updatedAt'
+      ]) &&
+      data.ownerId == request.auth.uid &&
+      data.customerName is string &&
+      data.customerName.size() >= 1 &&
+      data.customerName.size() <= 100 &&
+      data.lawnSizeSqFt is number &&
+      data.lawnSizeSqFt > 0 &&
+      data.lawnSizeSqFt <= 1000000 &&
+      data.serviceType in ['Mow', 'Mow and Edge', 'Full Cleanup'] &&
+      data.servicePrice is number &&
+      data.servicePrice >= 0 &&
+      data.totalAmount is number &&
+      data.totalAmount >= 0 &&
+      data.status in ['Draft', 'Sent', 'Accepted', 'Declined'] &&
+      data.lineItems is list &&
+      data.lineItems.size() <= 10 &&
+      (!('ownerEmail' in data) || (data.ownerEmail is string && data.ownerEmail.size() <= 150)) &&
+      (!('clientNotes' in data) || (data.clientNotes is string && data.clientNotes.size() <= 500)) &&
+      (!('draftMessage' in data) || (data.draftMessage is string && data.draftMessage.size() <= 2000)) &&
+      (!('addons' in data) || (data.addons is list && data.addons.size() <= 10)) &&
+      (!('id' in data) || (data.id is string && data.id.size() <= 128)) &&
+      data.createdAt is timestamp &&
+      data.updatedAt is timestamp;
+    }
+
+    // Quotes collection rules
+    match /quotes/{quoteId} {
+      // Single doc read: only owner
+      allow get: if isSignedIn() &&
+                    isValidId(quoteId) &&
+                    resource.data.ownerId == request.auth.uid;
+
+      // List query: only owner (evaluated against resource.data)
+      allow list: if isSignedIn() &&
+                     resource.data.ownerId == request.auth.uid;
+
+      // Create: only signed-in owner creating for themselves with request.time
+      allow create: if isSignedIn() &&
+                       isValidId(quoteId) &&
+                       isValidQuote(incoming()) &&
+                       incoming().ownerId == request.auth.uid &&
+                       incoming().createdAt == request.time &&
+                       incoming().updatedAt == request.time;
+
+      // Update: only owner, immutable fields unchanged, valid timestamps
+      allow update: if isSignedIn() &&
+                       isValidId(quoteId) &&
+                       isValidQuote(incoming()) &&
+                       resource.data.ownerId == request.auth.uid &&
+                       incoming().ownerId == resource.data.ownerId &&
+                       incoming().createdAt == resource.data.createdAt &&
+                       incoming().updatedAt == request.time &&
+                       (
+                         // Action 1: Status update (Accepted or Declined or Sent)
+                         incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt']) ||
+                         // Action 2: Save AI drafted message
+                         incoming().diff(existing()).affectedKeys().hasOnly(['draftMessage', 'updatedAt']) ||
+                         // Action 3: General quote edit
+                         incoming().diff(existing()).affectedKeys().hasOnly([
+                           'customerName',
+                           'lawnSizeSqFt',
+                           'serviceType',
+                           'servicePrice',
+                           'addons',
+                           'lineItems',
+                           'totalAmount',
+                           'status',
+                           'clientNotes',
+                           'draftMessage',
+                           'updatedAt'
+                         ])
+                       );
+
+      // Delete: only owner
+      allow delete: if isSignedIn() &&
+                       isValidId(quoteId) &&
+                       resource.data.ownerId == request.auth.uid;
+    }
+  }
+}

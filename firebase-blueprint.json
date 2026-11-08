@@ -1,0 +1,96 @@
+{
+  "entities": {
+    "Quote": {
+      "title": "Quote",
+      "description": "A lawn care quote created by a business owner for a customer.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique database-generated ID for the quote"
+        },
+        "ownerId": {
+          "type": "string",
+          "description": "Firebase Auth UID of the lawn care owner"
+        },
+        "ownerEmail": {
+          "type": "string",
+          "description": "Email address of the business owner"
+        },
+        "customerName": {
+          "type": "string",
+          "maxLength": 100,
+          "description": "Name of the customer (made-up test name)"
+        },
+        "lawnSizeSqFt": {
+          "type": "number",
+          "description": "Lawn area in square feet"
+        },
+        "serviceType": {
+          "type": "string",
+          "enum": ["Mow", "Mow and Edge", "Full Cleanup"],
+          "description": "Selected lawn care package"
+        },
+        "servicePrice": {
+          "type": "number",
+          "description": "Calculated base price for the chosen service package"
+        },
+        "addons": {
+          "type": "array",
+          "description": "List of selected add-on IDs"
+        },
+        "lineItems": {
+          "type": "array",
+          "description": "Calculated itemized breakdown of services and add-ons"
+        },
+        "totalAmount": {
+          "type": "number",
+          "description": "Sum of all line items"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["Draft", "Sent", "Accepted", "Declined"],
+          "description": "Current status of the quote"
+        },
+        "clientNotes": {
+          "type": "string",
+          "maxLength": 500,
+          "description": "Special property or service instructions"
+        },
+        "draftMessage": {
+          "type": "string",
+          "maxLength": 2000,
+          "description": "AI-generated customer pitch message"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp when the quote was saved"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp when the quote was last modified"
+        }
+      },
+      "required": [
+        "ownerId",
+        "customerName",
+        "lawnSizeSqFt",
+        "serviceType",
+        "servicePrice",
+        "lineItems",
+        "totalAmount",
+        "status",
+        "createdAt",
+        "updatedAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/quotes/{quoteId}": {
+      "schema": "Quote",
+      "description": "Collection of all quotes. Each business owner can only read, write, and list their own quotes."
+    }
+  }
+}

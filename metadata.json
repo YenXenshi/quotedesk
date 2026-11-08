@@ -1,0 +1,6 @@
+{
+  "name": "QuoteDesk",
+  "description": "Smart quote generator and proposal manager for lawn care professionals, featuring automated pricing, line-by-line breakdowns, status tracking, and AI client messaging.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
